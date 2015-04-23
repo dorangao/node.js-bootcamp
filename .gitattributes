@@ -1,0 +1,64 @@
+
+# Handle line endings automatically for files detected as text
+# and leave all files detected as binary untouched.
+* text=auto
+
+#
+# The above will handle all files NOT found below
+#
+# These files are text and should be normalized (Convert crlf => lf)
+*.checkstyle text
+*.css text
+*.csv text
+*.CTL text
+*.df text
+*.htaccess text
+*.htm text
+*.html text
+*.java text
+*.js text
+*.json text
+*.jsp text
+*.jspf text
+*.map text
+*.MF text
+*.properties text
+*.sh text
+*.sql text
+*.svg text
+*.tag text
+*.tld text
+*.txt text
+*.wdl text
+*.wsdl text
+*.xml text
+*.xsd text
+*.xsl text
+*.md text
+*.MD text
+*.markdown text
+# Declare files that will always have CRLF line endings on checkout.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# These files are binary and should be left untouched
+# (binary is a macro for -text -diff)
+*.beans binary
+*.bmp binary
+*.class binary
+*.dll binary
+*.eot binary
+*.gif binary
+*.GIF binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.keystore binary
+*.keystore binary
+*.otf binary
+*.png binary
+*.rar binary
+*.so binary
+*.ttf binary
+*.woff binary
+
