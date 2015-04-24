@@ -1,5 +1,32 @@
 This is 00 project for Node.Js bootcamp
 
+##Completed:
+
+* [done] Required: Requests to port `8000` are echoed back with the same HTTP headers and body
+* [done] Required: Requests/reponses are proxied to/from the destination server
+* [done] Required: The destination server is configurable via the `--host`, `--port`  or `--url` arguments
+* [done] Required: The destination server is configurable via the `x-destination-url` header
+* [done] Required: Client requests and respones are printed to stdout
+* [done] Required: The `--logfile` argument outputs all logs to the file specified instead of stdout
+* [done] Optional: The `--exec` argument proxies stdin/stdout to/from the destination program
+* [done] Optional: The `--loglevel` argument sets the logging chattiness
+* [done] Optional: display different color for differt log lelel message
+* [done] Optional: Supports HTTPS
+* [done] Optional: Usage display
+* [done] extra:    Support change the server log level via client request in run time.
+
+
+Latest  recorded scenario.
+
+![alt tag](./TestScenarios-1.GIF)
+
+First  recorded scenario.
+
+![alt tag](./TestScenarios.GIF)
+
+
+
+
 The project has below features:
  
   Echo Server
@@ -65,6 +92,3 @@ Test Scenario 2:
     $curl -v http://127.0.0.1:8001 -H 'x-destination-url:http://www.yahoo.com'
 
 
-Below is the recorded scenarios.
-
-![alt tag](./TestScenarios.GIF)
