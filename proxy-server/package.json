@@ -3,15 +3,24 @@
   "version": "1.0.0",
   "description": "Doran Gao's First NodeJs Project",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "author": "Sipeng (Doran)",
   "license": "ISC",
   "dependencies": {
     "request": "^2.55.0",
     "through": "^2.3.7",
+    "validator": "^3.39.0",
     "winston": "^1.0.0",
     "yargs": "^3.7.2"
+  },
+  "devDependencies": {
+    "chai": "^2.2.0",
+    "mocha": "^2.2.4",
+    "sinon": "^1.14.1",
+    "sinon-chai": "^2.7.0",
+    "testem": "^0.8.2"
+  },
+  "scripts": {
+    "start": "babel-node index.js",
+    "test": "make test"
   }
 }

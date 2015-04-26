@@ -1,6 +1,4 @@
-let http = require('http');
-let request = require('request');
-let argv = require('yargs')
+var argv = require('yargs')
     .usage('This is my first awesome Node.js program\n\nUsage: $0 [options]'
     + '\nIt supports support change log level via client request header: x-log-level'
     + '\nor forward to the destination url which specified in request header: x-destination-url'
@@ -52,11 +50,20 @@ if (argv.exec) {
     require('child_process').spawn(argv.exec, argv._, {stdio: 'inherit'});
     process.exit(0);
 }
+var http = require('http');
+var request = require('request');
+var validator = require('validator');
+var Logger = require('./lib/Logger');
+var logger = new Logger(argv.loglevel, argv.logfile);
 
-let scheme = 'http://';
-let port = argv.port || argv.host === '127.0.0.1' ? 8000 : 80;
-let destinationUrl = argv.url || scheme + argv.host + ':' + port;
-let logger = (new require('./lib/Logger'))(argv.loglevel, argv.logfile);
+var scheme = 'http://';
+var port = argv.port || argv.host === '127.0.0.1' ? 8000 : 80;
+var destinationUrl = argv.url || scheme + argv.host + ':' + port;
+
+if (!validator.isURL(destinationUrl)) {
+    logger.error('Default DestinationURL is not valid:' + destinationUrl);
+    process.exit(1);
+}
 
 http.createServer((req, res) => {
 
@@ -74,20 +81,26 @@ http.createServer((req, res) => {
     if (req.headers['x-log-level'])
         logger.updateloglevel(req.headers['x-log-level']);
 
-    logger.warn('Proxy Request:' + JSON.stringify(req.headers));
-    logger.warn(req);
+    logger.debug('Proxy Request Headers:' + JSON.stringify(req.headers));
+    logger.debug("Proxy Request" + req);
 
-    let url = destinationUrl;
-    if (req.headers['x-destination-url'])
+    var url = destinationUrl;
+    if (req.headers['x-destination-url'] && validator.isURL(req.headers['x-destination-url'])) {
         url = req.headers['x-destination-url'];
+    } else if (req.headers['x-destination-url'] && !validator.isURL(req.headers['x-destination-url'])) {
+        logger.error('The destinationURL not valid:' + url +
+        '\n The default destionationalUrl get used ');
+    }
 
     let options = {
         headers: req.headers,
         url: url + req.url
-      };
-    logger.error(' Proxy Destination Url:' + options.url);
+    };
+    logger.info(' Proxy Destination Url:' + options.url);
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
     let destinationResponse = req.pipe(request(options));
     logger.info(destinationResponse);
     destinationResponse.pipe(res);
 }).listen(8001);
+
+logger.info('This process is pid ' + process.pid);

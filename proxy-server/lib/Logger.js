@@ -66,11 +66,7 @@ var Logger = function (level, logfile) {
     var through = require('through');
 
     function getstream(level) {
-        var ts = through(function (data) {
-            this.queue(data)
-        }, function () {
-            this.queue(null)
-        }), actual = [];
+        var ts = through(), actual = [];
 
         ts.on('data', actual.push.bind(actual));
         ts.on('end', function () {
@@ -87,6 +83,8 @@ var Logger = function (level, logfile) {
     }
 
     target.updateloglevel = updateloglevel;
+    target.log = log;
+    target._logger = _logger;
     return target;
 };
 
