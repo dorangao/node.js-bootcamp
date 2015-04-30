@@ -1,16 +1,13 @@
+let nssocket = require('nssocket');
 let path = require('path');
 let fs = require('fs');
 let mkdirp = require('mkdirp');
 let rimraf = require('rimraf');
 let crypto = require('crypto');
 let chokidar = require('chokidar');
+let uuid = require('node-uuid');
 let argv = require('yargs')
-    .usage('This is Dropbox program\n\nUsage: $0 [options]'
-    + '\nIt supports support change log level via client request header: x-log-level'
-    + '\nor forward to the destination url which specified in request header: x-destination-url'
-    + 'And it displays the server log in console with different colors according to log level'
-    + '\n\nEcho Server listens on 8000 and will echo bach all the request received including body and headers.'
-    + '\nProxy Server listens on 8001 and can forward to specified destination')
+    .usage('This is Dropbox program - Client\n\nUsage: $0 [options]')
     .help('help').alias('help', 'h')
     .version('1.0.0', 'version').alias('version', 'V')
     .options({
@@ -29,7 +26,6 @@ require('songbird');
 
 const SOCKETPORT = process.env.SOCKETPORT || 4949;
 const ROOT_DIR = path.resolve(argv.dir);
-let nssocket = require('nssocket');
 const FILE_EVENTS_MAP = {
     add: {action: "create", type: "file"},
     change: {action: "update", type: "file"},
@@ -38,30 +34,44 @@ const FILE_EVENTS_MAP = {
     unlinkDir: {action: "delete", type: "dir"}
 };
 
+let filedata = {
+    "action": "delete",                        // "update" or "delete"
+    "path": "/path/to/file/from/root",
+    "type": "dir",                            // or "file"
+    "contents": null,                            // or the base64 encoded file contents
+    "chksum": null                    // time of creation/deletion/update
+};
+
+
+let clientid = uuid.v4();
 let files = [];
-
 let ignores = {};
+let isready = false;
 
-var socket = new nssocket.NsSocket({
+let socket = new nssocket.NsSocket({
     reconnect: true,
     type: 'tcp4'
 });
 
 
-
 socket.data('Watch', function (data) {
         console.dir(data);
-        ignores[data.path] = true;
+        if (files[data.path] && files[data.path].chksum && files[data.path].chksum === data.chksum) {
+            return;
+        }
+
         let filePath = path.resolve(path.join(ROOT_DIR, data.path));
         //Directory
         if (data.type === 'dir') {
             if (data.action === 'delete') {
                 fs.promise.stat(filePath)
                     .then(stat => {
+                        ignores[filePath] = true;
                         rimraf.promise(filePath)
                         files[data.path] = undefined;
                     }).catch();
             } else if (data.action === 'create') {
+                ignores[filePath] = true;
                 mkdirp.promise(filePath);
                 files[data.path] = data;
             }
@@ -71,11 +81,22 @@ socket.data('Watch', function (data) {
             if (data.action === 'delete') {
                 fs.promise.stat(filePath)
                     .then(stat => {
+                        ignores[filePath] = true;
                         fs.promise.unlink(filePath);
                         files[data.path] = undefined;
                     }).catch();
             } else if (!files[data.path] || files[data.path].chksum !== data.checksum) {
-                mkdirp.promise(path.dirname(filePath));
+
+
+                if (files[data.path] && files[data.path].chksum && data.lastchksum && files[data.path].chksum !== data.lastchksum) {
+                    //Save a conflict.
+                    fs.promise.rename(filePath, filePath + files[data.path].chksum + '.bak');
+                }
+
+                let dir = path.dirname(filePath);
+                ignores[dir] = true;
+                mkdirp.promise(dir);
+                ignores[filePath] = true;
                 fs.promise.writeFile(filePath, data.contents)
                     .then(() => {
                         data.contents = null;
@@ -91,47 +112,44 @@ socket.on('start', function () {
     // as it attempts to reconnect
     //
     console.dir('start');
-    chokidar.watch(ROOT_DIR, {ignoreInitial: true, ignored: /[\/\\]\.|node_modules|\.git|___jb_old___/})
-        .on('all', (event, path, stat) => {
-            let filepath = path.toString().slice(ROOT_DIR.toString().length);
-            if(ignores[filepath] !== undefined)
-            {
-                ignores[filepath] == undefined;
-                return;
-            }
-            console.log(event, path);
-            filedata.action = FILE_EVENTS_MAP[event].action;
-            filedata.type = FILE_EVENTS_MAP[event].type;
-            filedata.path = filepath;
-            files[filepath] = filedata;
-            if (stat && filedata.type === 'file') {
-                fs.promise.readFile(path)
-                    .then(data => {
-                        let chksum = checksum(data);
-                        if (files[filepath].chksum === undefined || files[filepath].chksum !== chksum) {
-                            files[filepath].chksum = chksum;
-                            files[filepath].contents = data;
-                            socket.send('Watch', files[filepath]);
-                            files[filepath].contents = null;
-                            return;
-                        }
-                    });
-            }
-            socket.send('Watch', files[filepath]);
-        });
+    isready = true;
 
 });
 
+chokidar.watch(ROOT_DIR, {ignoreInitial: false, ignored: /[\/\\]\.|node_modules|\.git|___jb_old___|\.bak/})
+    .on('all', (event, path, stat) => {
+        let filepath = path.toString().slice(ROOT_DIR.toString().length);
+        if (ignores[path.toString()] !== undefined) {
+            ignores[path.toString()] = undefined;
+            return;
+        }
+        console.log(event, path);
+        filedata.action = FILE_EVENTS_MAP[event].action;
+        filedata.type = FILE_EVENTS_MAP[event].type;
+        filedata.path = filepath;
+        files[filepath] = filedata;
+        if (stat && filedata.type === 'file') {
+            fs.promise.readFile(path)
+                .then(data => {
+                    let dataStr = data.toString();
+                    let chksum = checksum(dataStr);
+                    if (files[filepath].chksum === undefined || files[filepath].chksum !== chksum) {
+                        files[filepath].chksum = chksum;
+                        files[filepath].contents = dataStr;
+                        if (isready)
+                            socket.send('Watch', files[filepath]);
+                        return;
+                    }
+                });
+        }
+        if (isready)
+            socket.send('Watch', files[filepath]);
+    });
 
-let filedata = {
-    "action": "delete",                        // "update" or "delete"
-    "path": "/path/to/file/from/root",
-    "type": "dir",                            // or "file"
-    "contents": null,                            // or the base64 encoded file contents
-    "chksum": null                    // time of creation/deletion/update
-};
-
-socket.connect(SOCKETPORT);
+setTimeout(() => {
+    socket.connect(SOCKETPORT);
+    console.log(`TCP Client [${clientid}] is up`);
+}, 3000);
 
 
 function checksum(str, algorithm, encoding) {

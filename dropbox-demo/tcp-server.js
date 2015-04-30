@@ -1,3 +1,4 @@
+let nssocket = require('nssocket');
 let path = require('path');
 let mkdirp = require('mkdirp');
 let rimraf = require('rimraf');
@@ -6,12 +7,7 @@ let crypto = require('crypto');
 let chokidar = require('chokidar');
 var _ = require('lodash-node');
 let argv = require('yargs')
-    .usage('This is Dropbox program\n\nUsage: $0 [options]'
-    + '\nIt supports support change log level via client request header: x-log-level'
-    + '\nor forward to the destination url which specified in request header: x-destination-url'
-    + 'And it displays the server log in console with different colors according to log level'
-    + '\n\nEcho Server listens on 8000 and will echo bach all the request received including body and headers.'
-    + '\nProxy Server listens on 8001 and can forward to specified destination')
+    .usage('This is Dropbox program - Server\n\nUsage: $0 [options]')
     .help('help').alias('help', 'h')
     .version('1.0.0', 'version').alias('version', 'V')
     .options({
@@ -28,14 +24,12 @@ let argv = require('yargs')
 let nodeify = require('bluebird-nodeify');
 require('songbird');
 
-let nssocket = require('nssocket');
 
 const SOCKETPORT = process.env.SOCKETPORT || 4949;
 const ROOT_DIR = path.resolve(argv.dir);
 
 let files = [];
-let ignores = {};
-
+let isready = false;
 let sockets = [];
 
 const FILE_EVENTS_MAP = {
@@ -51,8 +45,8 @@ let filedata = {
     "path": "/path/to/file/from/root",
     "type": "dir",                            // or "file"
     "contents": null,                            // or the base64 encoded file contents
-    "checksum": null,                    // time of creation/deletion/update
-    "privous": null
+    "chksum": null,                    // time of creation/deletion/update
+    "lastchksum": null
 };
 
 
@@ -61,11 +55,15 @@ let server = nssocket.createServer(function (socket) {
 
     sockets.push(socket);
 
-
     socket.data('Watch', function (data) {
-            notifyOthers(socket, _.clone(data));
+            let svrcopy = _.clone(data)
+            if (files[svrcopy.path] && files[svrcopy.path].chksum && files[svrcopy.path].chksum !== svrcopy.chksum) {
+                svrcopy.lastchksum = files[svrcopy.path].chksum;
+            } else if (files[svrcopy.path] && files[svrcopy.path].chksum && files[svrcopy.path].chksum === svrcopy.chksum) {
+                return;
+            }
+            notifyOthers(socket, svrcopy);
             console.dir(data);
-            ignores[data.path] = true;
             let filePath = path.resolve(path.join(ROOT_DIR, data.path));
             //Directory
             if (data.type === 'dir') {
@@ -88,7 +86,7 @@ let server = nssocket.createServer(function (socket) {
                             fs.promise.unlink(filePath);
                             files[data.path] = undefined;
                         }).catch();
-                } else if (!files[data.path] || files[data.path].chksum !== data.checksum) {
+                } else if (!files[data.path] || files[data.path].chksum !== data.chksum) {
                     mkdirp.promise(path.dirname(filePath));
                     fs.promise.writeFile(filePath, data.contents)
                         .then(() => {
@@ -102,14 +100,16 @@ let server = nssocket.createServer(function (socket) {
 
 });
 
-let watcher = chokidar.watch(ROOT_DIR, {ignoreInitial: true, ignored: /[\/\\]\.|node_modules|\.git|___jb_old___/});
-watcher.on('all', (event, path, stat) => {
+let watcher1 = chokidar.watch(ROOT_DIR, {
+    ignoreInitial: false,
+    ignored: /[\/\\]\.|node_modules|\.git|___jb_old___|\.bak/
+}), watcher2 = chokidar.watch(ROOT_DIR, {
+    ignoreInitial: true,
+    ignored: /[\/\\]\.|node_modules|\.git|___jb_old___|\.bak/
+});
+
+watcher1.on('all', (event, path, stat) => {
     let filepath = path.toString().slice(ROOT_DIR.toString().length);
-    if(ignores[filepath] !== undefined)
-    {
-        ignores[filepath] == undefined;
-        return;
-    }
     console.log(event, path);
     filedata.action = FILE_EVENTS_MAP[event].action;
     filedata.type = FILE_EVENTS_MAP[event].type;
@@ -121,17 +121,22 @@ watcher.on('all', (event, path, stat) => {
                 let chksum = checksum(data);
                 if (files[filepath].chksum === undefined || files[filepath].chksum !== chksum) {
                     files[filepath].chksum = chksum;
-                    files[filepath].contents = data;
-                    notifyOthers(null, files[filepath]);
-                    files[filepath].contents = null;
                     return;
                 }
             });
     }
-    notifyOthers(null, files[filepath]);
-}).on('ready', (event, path, stat) => {
-    server.listen(SOCKETPORT);
 });
+
+setTimeout(() => {
+    server.listen(SOCKETPORT);
+    isready = true;
+    console.log('TCP Server is up');
+    watcher1.close();
+    watcher2.on('all', (event, path, stat) => {
+        console.log(event, path);
+    });
+}, 3000);
+
 
 function checksum(str, algorithm, encoding) {
     return crypto
@@ -141,9 +146,11 @@ function checksum(str, algorithm, encoding) {
 }
 
 function notifyOthers(socket, data) {
-    let all = socket === undefined ? true:false;
+    if (!isready)
+        return;
+    let all = socket === undefined ? true : false;
     sockets.forEach(function (so) {
-        if (all || so !== socket)
+        if (all || (so !== socket && so.connected))
             so.send('Watch', data);
     });
 }

@@ -10,7 +10,19 @@ let mime = require('mime-types');
 let rimraf = require('rimraf');
 let mkdirp = require('mkdirp');
 let argv = require('yargs')
-    .default('dir', process.cwd())
+    .usage('This is Dropbox program - Server\n\nUsage: $0 [options]')
+    .help('help').alias('help', 'h')
+    .version('1.0.0', 'version').alias('version', 'V')
+    .options({
+        dir: {
+            alias: 'd',
+            description: "The client root directory",
+            requiresArg: true,
+            default: process.cwd()
+        }
+    })
+    .example('bode $0 --dir <clientrootdir>')
+    .epilog('for more information visit https://github.com/dorangao/node.js-bootcamp')
     .argv;
 
 require('songbird');
@@ -22,14 +34,15 @@ const ROOT_DIR = path.resolve(argv.dir);
 
 let app = express();
 
-app.use(morgan('dev'))
-app.use(function (req, res, next) {
-    console.log(req.headers);
-    next();
-});
-
-let privateKey = await fs.promise.readFile('certs/key.pem');
-let certificate = await fs.promise.readFile('certs/cert.pem');
+if (NODE_ENV === 'development') {
+    app.use(morgan('dev'));
+    app.use(function (req, res, next) {
+        console.log(req.headers);
+        next();
+    });
+}
+let privateKey = fs.promise.readFile('certs/key.pem');
+let certificate = fs.promise.readFile('certs/cert.pem');
 let options = {key: privateKey, cert: certificate};
 
 https.createServer(options, app).listen(SSLPORT, ()=> console.log(`Listening @ https://127.0.0.1:${SSLPORT}`));
@@ -40,11 +53,11 @@ http.createServer(function (req, res) {
         HttpsAgent = agentkeepalive.HttpsAgent,
         agent = new HttpsAgent({keepAlive: true, keepAliveMsecs: 10000});
     let options = {
-        agent:agent,
+        agent: agent,
         headers: req.headers,
         url: "https://127.0.0.1:" + SSLPORT + req.url,
         agentOptions: {
-            ca: await fs.promise.readFile('certs/key.pem')
+            ca: fs.promise.readFile('certs/key.pem')
         }
     };
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -52,11 +65,13 @@ http.createServer(function (req, res) {
     destinationResponse.pipe(res);
 }).listen(PORT, ()=> console.log(`Listening @ http://127.0.0.1:${PORT}`));
 
+
 app.get('*', setFileMeta, sendHeaders, (req, res) => {
     if (res.body) {
         res.json(res.body);
         return
     }
+
     fs.createReadStream(req.filePath).pipe(res)
 });
 
@@ -70,8 +85,7 @@ app.delete('*', setFileMeta, (req, res, next) => {
             await rimraf.promise(req.filePath)
         } else await fs.promise.unlink(req.filePath);
         res.end()
-    }
-    ().catch(next)
+    }().catch(next);;
 });
 
 app.put('*', setFileMeta, setDirDetails, (req, res, next) => {
@@ -81,8 +95,7 @@ app.put('*', setFileMeta, setDirDetails, (req, res, next) => {
 
         if (!req.isDir) req.pipe(fs.createWriteStream(req.filePath));
         res.end()
-    }
-    ().catch(next)
+    }().catch(next);;
 });
 
 app.post('*', setFileMeta, setDirDetails, (req, res, next) => {
@@ -90,11 +103,10 @@ app.post('*', setFileMeta, setDirDetails, (req, res, next) => {
         if (!req.stat) return res.send(405, 'File does not exist');
         if (req.isDir || req.stat.isDirectory()) return res.send(405, 'Path is a directory');
 
-        fs.promise.truncate(req.filePath, 0);
+        await fs.promise.truncate(req.filePath, 0);
         req.pipe(fs.createWriteStream(req.filePath));
         res.end()
-    }
-    ().catch(next)
+    }().catch(next);;
 });
 
 
@@ -111,7 +123,7 @@ function setFileMeta(req, res, next) {
     req.filePath = path.resolve(path.join(ROOT_DIR, req.url));
     if (req.filePath.indexOf(ROOT_DIR) !== 0) {
         res.send(400, 'Invalid path');
-        return;
+        return
     }
     fs.promise.stat(req.filePath)
         .then(stat => req.stat = stat, ()=> req.stat = null)
@@ -125,12 +137,11 @@ function sendHeaders(req, res, next) {
             res.body = JSON.stringify(files);
             res.setHeader('Content-Length', res.body.length);
             res.setHeader('Content-Type', 'application/json');
-            return;
+            return
         }
 
         res.setHeader('Content-Length', req.stat.size);
         let contentType = mime.contentType(path.extname(req.filePath));
         res.setHeader('Content-Type', contentType)
-    }(), next
-)
+    }(), next)
 };

@@ -2,20 +2,19 @@
   "name": "dropbox-demo",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon --exec babel-node -- --stage 1 --optional strict -- index.js --dir ~/tmp"
+    "start": "nodemon --exec babel-node -- --stage 1 --optional strict -- index.js --dir ~/tmp/server"
   },
   "dependencies": {
     "agentkeepalive": "^2.0.2",
     "bluebird-nodeify": "^1.0.0",
-    "body-parser": "^1.12.3",
     "chokidar": "^1.0.1",
     "crypto": "0.0.3",
     "express": "^4.0.0",
-    "lodash": "^3.7.0",
     "lodash-node": "^3.7.0",
     "mime-types": "^2.0.10",
     "mkdirp": "^0.5.0",
     "morgan": "^1.5.2",
+    "node-uuid": "^1.4.3",
     "nssocket": "^0.5.3",
     "request": "^2.55.0",
     "rimraf": "^2.3.2",

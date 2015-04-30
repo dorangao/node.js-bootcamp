@@ -20,7 +20,7 @@ Time spent: 2 hours
 
 - [x] Client and User will be redirected from HTTP to HTTPS
 - [x] Server will sync from client over TCP
-- [ ] Client will preserve a 'Conflict' file when pushed changes preceeding local edits
+- [x] Client will preserve a 'Conflict' file when pushed changes preceeding local edits
 - [ ] Client can stream and scrub video files (e.g., on iOS)
 - [ ] Client can download a directory as an archive
 - [ ] Client can create a directory with an archive
