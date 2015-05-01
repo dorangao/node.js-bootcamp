@@ -6,6 +6,8 @@
   },
   "dependencies": {
     "agentkeepalive": "^2.0.2",
+    "async": "^0.9.0",
+    "binaryjs": "^0.2.1",
     "bluebird-nodeify": "^1.0.0",
     "chokidar": "^1.0.1",
     "crypto": "0.0.3",

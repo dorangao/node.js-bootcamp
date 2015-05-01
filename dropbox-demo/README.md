@@ -26,6 +26,10 @@ Time spent: 2 hours
 - [ ] Client can create a directory with an archive
 - [ ] User can connect to the server using an FTP client
 
+### Extra
+
+- [x] Client can make GET requests to get file names under directory Recursively
+
 
 ### Walkthrough
 
