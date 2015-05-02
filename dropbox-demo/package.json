@@ -9,9 +9,11 @@
     "async": "^0.9.0",
     "binaryjs": "^0.2.1",
     "bluebird-nodeify": "^1.0.0",
+    "checksum": "^0.1.1",
     "chokidar": "^1.0.1",
     "crypto": "0.0.3",
     "express": "^4.0.0",
+    "filesize": "^3.1.2",
     "lodash-node": "^3.7.0",
     "mime-types": "^2.0.10",
     "mkdirp": "^0.5.0",
@@ -21,6 +23,7 @@
     "request": "^2.55.0",
     "rimraf": "^2.3.2",
     "songbird": "^1.0.1",
+    "through": "^2.3.7",
     "yargs": "^3.8.0"
   }
 }
