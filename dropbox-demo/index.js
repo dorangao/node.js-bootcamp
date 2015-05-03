@@ -11,6 +11,10 @@ let mime = require('mime-types');
 let rimraf = require('rimraf');
 let mkdirp = require('mkdirp');
 let _ = require('lodash-node');
+let archiver = require('archiver');
+let unzip = require('unzip');
+let dbox = require('./lib/dbox');
+
 let argv = require('yargs')
     .usage('This is Dropbox program - Server\n\nUsage: $0 [options]')
     .help('help').alias('help', 'h')
@@ -36,44 +40,61 @@ const ROOT_DIR = path.resolve(argv.dir);
 
 let app = express();
 
+
 if (NODE_ENV === 'development') {
     app.use(morgan('dev'))
 }
+
 async () => {
 
     let privateKey = await fs.promise.readFile('./certs/key.pem');
     let certificate = await fs.promise.readFile('./certs/cert.pem');
     let certOptions = {key: privateKey, cert: certificate};
     let HttpsAgent = agentkeepalive.HttpsAgent,
-        agent = new HttpsAgent({keepAlive: true, keepAliveMsecs: 10000}),
+        agent = new HttpsAgent({keepAlive: true, keepAliveMsecs: 1000}),
         SSLHost = "127.0.0.1:" + SSLPORT;
-    let options = {
-        agent: agent,
-        url: "https://" + SSLHost,
-        agentOptions: {
-            ca: privateKey
-        }
-    };
 
     https.createServer(certOptions, app).listen(SSLPORT, ()=> console.log(`Listening @ https://127.0.0.1:${SSLPORT}`));
     //same as curl -k to ignore the certificate to allow http redirect
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
     http.createServer(function (req, res) {
-        options.headers = req.headers;
-        options.headers['Host'] = SSLHost;
-        options.url += req.url;
+        req.headers['Host'] = SSLHost;
+        let options = {
+            headers: req.headers,
+            agent: agent,
+            url: "https://" + SSLHost + req.url,
+            agentOptions: {
+                ca: privateKey
+            }
+        };
         req.pipe(request(options)).pipe(res);
+
+        //on stream closed we can end the request
+        res.on('close', function () {
+            res.end();
+        });
     }).listen(PORT, ()=> console.log(`Listening @ http://127.0.0.1:${PORT}`));
 
-}();
+}
+();
 
-app.get('*', setFileMeta, sendHeaders, (req, res) => {
-    if (res.body) {
-        res.json(res.body);
-        return
+app.get('*', setFileMeta, sendHeaders, (req, res, next) => {
+    async ()=> {
+        if (req.isDir) {
+            if (!req.headers['x-get-zip']) {
+                let files = await dbox.lsR(req.filePath);
+                res.body = files.join(",");
+                res.json(res.body);
+            } else {
+                await processDirZip(req, res, next);
+            }
+            return;
+        }
+
+        fs.createReadStream(req.filePath).pipe(res)
     }
-
-    fs.createReadStream(req.filePath).pipe(res)
+    ().catch(next);
+    next;
 });
 
 app.head('*', setFileMeta, sendHeaders, (req, res) => res.end());
@@ -86,7 +107,8 @@ app.delete('*', setFileMeta, (req, res, next) => {
             await rimraf.promise(req.filePath)
         } else await fs.promise.unlink(req.filePath);
         res.end()
-    }().catch(next)
+    }
+    ().catch(next)
 });
 
 app.put('*', setFileMeta, setDirDetails, (req, res, next) => {
@@ -94,9 +116,18 @@ app.put('*', setFileMeta, setDirDetails, (req, res, next) => {
         if (req.stat) return res.send(405, 'File exists');
         await mkdirp.promise(req.dirPath);
 
-        if (!req.isDir) req.pipe(fs.createWriteStream(req.filePath));
-        res.end()
-    }().catch(next)
+        if (!req.isDir) {
+            unzip2Dir(req,res);
+        } else {
+            let output = fs.createWriteStream(req.filePath);
+            req.pipe(output);
+
+            output.on('close', function () {
+                return res.status(200).send('OK').end();
+            });
+        }
+    }
+    ().catch(next)
 });
 
 app.post('*', setFileMeta, setDirDetails, (req, res, next) => {
@@ -107,7 +138,8 @@ app.post('*', setFileMeta, setDirDetails, (req, res, next) => {
         await fs.promise.truncate(req.filePath, 0);
         req.pipe(fs.createWriteStream(req.filePath));
         res.end()
-    }().catch(next)
+    }
+    ().catch(next)
 });
 
 function setDirDetails(req, res, next) {
@@ -133,28 +165,57 @@ function setFileMeta(req, res, next) {
 function sendHeaders(req, res, next) {
     nodeify(async ()=> {
         if (req.stat.isDirectory()) {
-            let files = await lsR(req.filePath);
-            res.body = files.join(",");
-            res.setHeader('Content-Length', res.body.length);
-            res.setHeader('Content-Type', 'application/json');
+            req.isDir = true;
             return
         }
         res.setHeader('Content-Length', req.stat.size);
         let contentType = mime.contentType(path.extname(req.filePath));
         res.setHeader('Content-Type', contentType)
-    }(), next)
+    }(), next
+)
 }
-// Recursive function to list all the files given an
-async function lsR(dirPath) {
-    let promises = [];
-    let names = [];
-    for (let name of await fs.promise.readdir(dirPath)) {
-        let fullpath = path.resolve(path.join(dirPath, name));
-        let stat = await fs.promise.stat(fullpath);
-        if (stat.isDirectory())
-            promises.push(lsR(fullpath));
-        else
-            names.push(name);
+
+/**
+ * download folder as a zip file
+ * */
+function processDirZip(req, res, next) {
+    async()=> {
+        let files = await dbox.lsR(req.filePath);
+        let archive = archiver('zip');
+        archive.on('error', function (err) {
+            console.log('errr');
+        });
+
+        let zipName = req.url === '/' ? 'server' : req.url.slice(req.url.lastIndexOf('/'));
+
+        archive.pipe(res);
+        for (let i in files) {
+            let name = zipName + '/' + files[i];
+            archive.append(fs.createReadStream(path.join(req.filePath, files[i])), {name: name});
+        }
+        archive.finalize();
+
+        res.attachment(zipName + '.zip');
+        res.on('close', function () {
+            return res.status(200).send('OK').end();
+        });
+
     }
-    return names.concat(_.flatten(await Promise.all(promises)))
+    ();
+}
+
+/**
+ *  upload a zip file as a folder
+ * */
+function unzip2Dir(req, res, next) {
+    async()=> {
+
+        let extract = unzip.Extract({ path: req.dirPath });
+        req.pipe(extract);
+        extract.on('close', function () {
+            return res.status(200).send('OK').end();
+        });
+
+    }
+    ().catch(err=>console.log(err.stack));
 }

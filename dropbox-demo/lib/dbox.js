@@ -7,14 +7,45 @@ let path = require('path');
 let mime = require('mime-types');
 let filesize = require('filesize');
 let checksum = require('checksum');
+let _ = require('lodash-node');
 require('songbird');
 
 module.exports = {
     upload: upload,
     download: download,
     cli_upload: cli_upload,
-    cli_download: cli_download
+    cli_download: cli_download,
+    lsR: lsR
 };
+
+async function zipDir(dirPath){
+    var file1 = '/home/sams/tmp/client2/test14.txt';
+    var file2 = '/home/sams/tmp/client2/dir1/test14.txt';
+    var file3 = '/home/sams/tmp/client2/dir2/test14.txt';
+
+    archive
+        .append(fs.createReadStream(file3), { name: 'dir2/test14.txt' })
+        .append(fs.createReadStream(file1), { name:'test14.txt' })
+        .append(fs.createReadStream(file2), { name: 'dir1/test14.txt' })
+        .finalize();
+}
+
+// Recursive function to list all the files given an
+async function lsR(dirPath, prefix) {
+    let promises = [];
+    let names = [];
+    if (_.isEmpty(prefix))
+        prefix = ""
+    for (let name of await fs.promise.readdir(dirPath)) {
+        let fullpath = path.resolve(path.join(dirPath, name));
+        let stat = await fs.promise.stat(fullpath);
+        if (stat.isDirectory())
+            promises.push(lsR(fullpath, path.join(prefix, name)));
+        else
+            names.push(path.join(prefix, name));
+    }
+    return names.concat(_.flatten(await Promise.all(promises)))
+}
 
 
 function download(client, meta, dirPath) {
@@ -30,7 +61,7 @@ function download(client, meta, dirPath) {
     ();
 }
 
-function upload(stream, meta, dirPath,cb,data) {
+function upload(stream, meta, dirPath, cb, data) {
     let filePath =
         path.join(dirPath, meta.name);
 
