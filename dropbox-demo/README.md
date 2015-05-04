@@ -1,8 +1,9 @@
 ## Dropbox Demo 
 
 This is a basic Dropbox clone to sync files across multiple remote folders.
+It provides https/http, ftp support and file will get synced over tcp, webs ocket.
 
-Time spent: 2 hours
+Time spent: 15 hours
 
 ### Features
 
@@ -24,7 +25,7 @@ Time spent: 2 hours
 - [x] Client can stream and scrub video files (e.g., on iOS)
 - [x] Client can download a directory as an archive
 - [x] Client can create a directory with an archive
-- [ ] User can connect to the server using an FTP client
+- [x] User can connect to the server using an FTP client
 
 ### Extra
 

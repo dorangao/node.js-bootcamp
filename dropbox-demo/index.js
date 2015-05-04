@@ -2,6 +2,7 @@ let path = require('path');
 let fs = require('fs');
 let https = require('https');
 let http = require('http');
+let ftpd = require('ftpd');
 let agentkeepalive = require('agentkeepalive');
 let request = require('request');
 let express = require('express');
@@ -36,6 +37,7 @@ require('songbird');
 const NODE_ENV = process.env.NODE_ENV;
 const PORT = process.env.PORT || 8000;
 const SSLPORT = process.env.SSLPORT || 8443;
+const FTPPORT = process.env.FTPPORT || 8023;
 const ROOT_DIR = path.resolve(argv.dir);
 
 let app = express();
@@ -75,6 +77,37 @@ async () => {
         });
     }).listen(PORT, ()=> console.log(`Listening @ http://127.0.0.1:${PORT}`));
 
+    let ftpoptions = {
+        pasvPortRangeStart: 4000,
+        pasvPortRangeEnd: 5000,
+        getInitialCwd: function (connection, callback) {
+            var userPath = ROOT_DIR;
+            callback(null, userPath);
+        },
+        getRoot: function (user) {
+            return '/';
+        }
+    };
+
+
+    let ftpserver = new ftpd.FtpServer('localhost', ftpoptions);
+
+    ftpserver.on('client:connected', function (conn) {
+        let username;
+        console.log('Client connected from ' + conn.socket.remoteAddress);
+        conn.on('command:user', function (user, success, failure) {
+            username = user;
+            (user === 'sams') ? success() : failure();
+        });
+        conn.on('command:pass', function (pass, success, failure) {
+            // check the password
+            (pass == 'sams') ? success(username) : failure();
+        });
+    });
+
+    ftpserver.listen(FTPPORT);
+    console.log('Listening @ ftp://127.0.0.1 ' + FTPPORT);
+
 }
 ();
 
@@ -106,7 +139,7 @@ app.delete('*', setFileMeta, (req, res, next) => {
         if (req.stat.isDirectory()) {
             await rimraf.promise(req.filePath)
         } else await fs.promise.unlink(req.filePath);
-        res.end()
+        res.status(200).send(req.url + ' removed').end();
     }
     ().catch(next)
 });
@@ -115,13 +148,13 @@ app.put('*', setFileMeta, setDirDetails, (req, res, next) => {
     async ()=> {
         if (req.stat) return res.send(405, 'File exists');
         await mkdirp.promise(req.dirPath);
-
-        if (!req.isDir) {
-            unzip2Dir(req,res);
+        if (req.isDir) {
+            return res.status(200).send('OK').end();
+        } else if (req.filePath.endsWith('.zip')) {
+            unzip2Dir(req, res);
         } else {
             let output = fs.createWriteStream(req.filePath);
             req.pipe(output);
-
             output.on('close', function () {
                 return res.status(200).send('OK').end();
             });
@@ -133,11 +166,12 @@ app.put('*', setFileMeta, setDirDetails, (req, res, next) => {
 app.post('*', setFileMeta, setDirDetails, (req, res, next) => {
     async ()=> {
         if (!req.stat) return res.send(405, 'File does not exist');
-        if (req.isDir || req.stat.isDirectory) return res.send(405, 'Path is a directory');
+
+        if (req.isDir) return res.status(405).send('Path is a directory').end();
 
         await fs.promise.truncate(req.filePath, 0);
         req.pipe(fs.createWriteStream(req.filePath));
-        res.end()
+        res.status(200).send('OK').end();
     }
     ().catch(next)
 });
@@ -210,7 +244,7 @@ function processDirZip(req, res, next) {
 function unzip2Dir(req, res, next) {
     async()=> {
 
-        let extract = unzip.Extract({ path: req.dirPath });
+        let extract = unzip.Extract({path: req.dirPath});
         req.pipe(extract);
         extract.on('close', function () {
             return res.status(200).send('OK').end();
