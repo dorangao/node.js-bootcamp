@@ -34,4 +34,12 @@ Time spent: 15 hours
 
 ### Walkthrough
 
-![Video Walkthrough](...)
+####  Https/Http, FTP, Client walthrough
+
+![alt tag](./Scenario1.gif)
+
+####  TCP Server/Multi Clients Sync up walthrough
+
+![alt tag](./Scenario2.gif)
+
+
