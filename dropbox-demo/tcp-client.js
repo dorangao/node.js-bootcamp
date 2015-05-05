@@ -1,4 +1,3 @@
-let nssocket = require('nssocket');
 let path = require('path');
 let fs = require('fs');
 let mkdirp = require('mkdirp');
@@ -35,18 +34,15 @@ let argv = require('yargs')
 
 require('songbird');
 
-const SOCKETPORT = process.env.SOCKETPORT || 4949;
-let wsserverUrl = "ws://localhost:9000";
+const PORT = process.env.PORT || 8000;
+let wsserverUrl = "ws://localhost:"+PORT;
 const ROOT_DIR = path.resolve(argv.dir);
 
 let clientid = uuid.v4();
 let files = [];
+let wsclient = new BinaryClient(wsserverUrl);
 let isMaster = argv.master;
 let isReady = false;
-let socket = new nssocket.NsSocket({
-    reconnect: true,
-    type: 'tcp4'
-});
 const FILE_EVENTS_MAP = {
     add: {action: "create", type: "file"},
     change: {action: "update", type: "file"},
@@ -58,73 +54,11 @@ const FILE_EVENTS_MAP = {
 
 let filedata = {
     action: "delete",                        // "create", "update" or "delete"
-    path: "/path/to/file/from/root",
+    name: "/path/to/file/from/root",
     type: "dir",                            // or "file"
     chksum: null,                   // hash of the file according to contents,support binary as well
     clientid: clientid
 };
-
-socket.data('Watch', function (data) {
-        if (data.clientid === clientid)
-            return;
-        let filePath = path.resolve(path.join(ROOT_DIR, data.path));
-        //Directory
-        if (data.type === 'dir') {
-            if (data.action === 'delete') {
-                fs.promise.stat(filePath)
-                    .then(stat => {
-                        rimraf.promise(filePath)
-                        delete files[data.path];
-                    }).catch();
-            } else if (data.action === 'create') {
-                ignores[filePath] = true;
-                mkdirp.promise(filePath);
-                files[data.path] = data;
-            }
-        }
-        //File
-        else {
-            if (data.action === 'delete') {
-
-                fs.promise.stat(filePath)
-                    .then(stat => {
-                        console.log(filePath)
-                        fs.promise.unlink(filePath);
-                        delete files[data.path];
-                    }).catch();
-            } else if (!files[data.path] || files[data.path].chksum !== data.checksum) {
-                if (files[data.path] && files[data.path].chksum && data.lastchksum && files[data.path].chksum !== data.lastchksum) {
-                    //Save a conflict.
-                    let bakFileName = filePath + files[data.path].chksum + '.bak';
-                    console.log(`File Confliction -- Please check backup [${bakFileName}]`);
-                    fs.promise.rename(filePath, bakFileName);
-                }
-                let dir = path.dirname(filePath);
-                mkdirp.promise(dir);
-                let wsclient = new BinaryClient(wsserverUrl);
-                wsclient.on('open', function () {
-                        dbox.cli_download(wsclient, ROOT_DIR, data.path);
-                    }
-                );
-                files[data.path] = data;
-            }
-        }
-    }
-);
-socket.data('Upload', function (data) {
-        let wsclient = new BinaryClient(wsserverUrl);
-        wsclient.on('open', function () {
-                dbox.cli_upload(wsclient, ROOT_DIR, data.path);
-            }
-        );
-    }
-)
-;
-
-socket.on('start', function () {
-    console.log('start');
-    isReady = true;
-});
 
 chokidar.watch(ROOT_DIR, {ignoreInitial: false, ignored: /[\/\\]\.|node_modules|\.git|___jb_old___|\.bak/})
     .on('all', (event, path, stat) => {
@@ -132,7 +66,8 @@ chokidar.watch(ROOT_DIR, {ignoreInitial: false, ignored: /[\/\\]\.|node_modules|
         let filepath = path.toString().slice(ROOT_DIR.toString().length);
         filedata.action = FILE_EVENTS_MAP[event].action;
         filedata.type = FILE_EVENTS_MAP[event].type;
-        filedata.path = filepath;
+        filedata.name = filepath;
+        filedata.size = stat ? stat.size : 0;
         files[filepath] = filedata;
         if (stat && filedata.type === 'file') {
             async ()=> {
@@ -142,7 +77,7 @@ chokidar.watch(ROOT_DIR, {ignoreInitial: false, ignored: /[\/\\]\.|node_modules|
                     if (files[filepath].chksum === undefined || files[filepath].chksum !== chksum) {
                         files[filepath].chksum = chksum;
                         if (isReady && isMaster)
-                            socket.send('Watch', files[filepath]);
+                            dbox.watch(wsclient, files[filepath]);
                     }
                 } catch (e) {
                     console.log(e.stack)
@@ -150,10 +85,76 @@ chokidar.watch(ROOT_DIR, {ignoreInitial: false, ignored: /[\/\\]\.|node_modules|
             }
             ()
         } else if (isReady && isMaster)
-            socket.send('Watch', files[filepath]);
+            dbox.watch(wsclient, files[filepath]);
     });
 
-setTimeout(() => {
-    socket.connect(SOCKETPORT);
-    console.log(`TCP Client [${clientid}] is up`);
-}, 3000);
+
+wsclient.on('open', function () {
+        isReady = true;
+        wsclient.on('stream', function (stream, meta) {
+            switch (meta.event) {
+                case 'cli-watch':
+                    processCliWatch(wsclient, meta);
+                    break;
+                case 'cli-upload':
+                    dbox.cli_upload(wsclient, meta, ROOT_DIR);
+                    break;
+                default:
+                    stream.write("No Route for the request:" + JSON.stringify(meta));
+                    console.dir(meta);
+            }
+        });
+
+
+    }
+);
+
+wsclient.on('close', function () {
+        console.log('server is down.')
+        process.exit(1);
+    }
+);
+
+function processCliWatch(client, meta) {
+    if (meta.clientid === clientid)
+        return;
+    let filePath = path.resolve(path.join(ROOT_DIR, meta.name));
+    //Directory
+    if (meta.type === 'dir') {
+        if (meta.action === 'delete') {
+            fs.promise.stat(filePath)
+                .then(stat => {
+                    rimraf.promise(filePath)
+                    delete files[meta.name];
+                }).catch();
+        } else if (meta.action === 'create') {
+            ignores[filePath] = true;
+            mkdirp.promise(filePath);
+            files[meta.name] = meta;
+        }
+    }
+    //File
+    else {
+        if (meta.action === 'delete') {
+
+            fs.promise.stat(filePath)
+                .then(stat => {
+                    console.log(filePath)
+                    fs.promise.unlink(filePath);
+                    delete files[meta.name];
+                }).catch();
+        } else if (!files[meta.name] || files[meta.name].chksum !== meta.checksum) {
+            if (files[meta.name] && files[meta.name].chksum && meta.lastchksum && files[meta.name].chksum !== meta.lastchksum) {
+                //Save a conflict.
+                let bakFileName = filePath + files[meta.name].chksum + '.bak';
+                console.log(`File Confliction -- Please check backup [${bakFileName}]`);
+                fs.promise.rename(filePath, bakFileName);
+            }
+            let dir = path.dirname(filePath);
+            mkdirp.promise(dir);
+            dbox.cli_download(client, meta, ROOT_DIR);
+            files[meta.name] = meta;
+        }
+    }
+
+}

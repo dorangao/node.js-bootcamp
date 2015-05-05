@@ -2,7 +2,7 @@
   "name": "dropbox-demo",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon --exec babel-node -- --stage 1 --optional strict -- index.js --dir ~/tmp/server"
+    "start": "nodemon --exec babel-node --stage 1 --optional strict -- index.js --dir ~/tmp/server"
   },
   "dependencies": {
     "agentkeepalive": "^2.0.2",
@@ -12,7 +12,6 @@
     "bluebird-nodeify": "^1.0.0",
     "checksum": "^0.1.1",
     "chokidar": "^1.0.1",
-    "crypto": "0.0.3",
     "express": "^4.0.0",
     "filesize": "^3.1.2",
     "ftpd": "^0.2.11",

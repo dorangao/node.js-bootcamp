@@ -4,6 +4,7 @@ let https = require('https');
 let http = require('http');
 let ftpd = require('ftpd');
 let agentkeepalive = require('agentkeepalive');
+let BinaryServer = require('binaryjs').BinaryServer;
 let request = require('request');
 let express = require('express');
 let morgan = require('morgan');
@@ -11,6 +12,8 @@ let nodeify = require('bluebird-nodeify');
 let mime = require('mime-types');
 let rimraf = require('rimraf');
 let mkdirp = require('mkdirp');
+let chokidar = require('chokidar');
+let checksum = require('checksum');
 let _ = require('lodash-node');
 let archiver = require('archiver');
 let unzip = require('unzip');
@@ -39,6 +42,24 @@ const PORT = process.env.PORT || 8000;
 const SSLPORT = process.env.SSLPORT || 8443;
 const FTPPORT = process.env.FTPPORT || 8023;
 const ROOT_DIR = path.resolve(argv.dir);
+let files = [];
+
+const FILE_EVENTS_MAP = {
+    add: {action: "create", type: "file"},
+    change: {action: "update", type: "file"},
+    unlink: {action: "delete", type: "file"},
+    addDir: {action: "create", type: "dir"},
+    unlinkDir: {action: "delete", type: "dir"}
+};
+
+let filedata = {
+    action: "create",                        // "update" or "delete"
+    path: "/path/to/file/from/root",
+    type: "dir",                            // or "file"
+    chksum: null,
+    lastchksum: null
+
+};
 
 let app = express();
 
@@ -49,6 +70,7 @@ if (NODE_ENV === 'development') {
 
 async () => {
 
+
     let privateKey = await fs.promise.readFile('./certs/key.pem');
     let certificate = await fs.promise.readFile('./certs/cert.pem');
     let certOptions = {key: privateKey, cert: certificate};
@@ -56,10 +78,8 @@ async () => {
         agent = new HttpsAgent({keepAlive: true, keepAliveMsecs: 1000}),
         SSLHost = "127.0.0.1:" + SSLPORT;
 
-    https.createServer(certOptions, app).listen(SSLPORT, ()=> console.log(`Listening @ https://127.0.0.1:${SSLPORT}`));
-    //same as curl -k to ignore the certificate to allow http redirect
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    http.createServer(function (req, res) {
+    let httpsServer = https.createServer(certOptions, app);
+    let httpServer = http.createServer(function (req, res) {
         req.headers['Host'] = SSLHost;
         let options = {
             headers: req.headers,
@@ -75,7 +95,35 @@ async () => {
         res.on('close', function () {
             res.end();
         });
-    }).listen(PORT, ()=> console.log(`Listening @ http://127.0.0.1:${PORT}`));
+    });
+    let bs = BinaryServer({server: httpServer});
+
+    httpsServer.listen(SSLPORT, ()=> console.log(`Listening @ https://127.0.0.1:${SSLPORT}`));
+
+    bs.on('connection', function (client) {
+        client.on('stream', function (stream, meta) {
+            console.dir(meta);
+            switch (meta.event) {
+                case 'watch':
+                    processWatch(bs,client, meta);
+                    break;
+                case 'download':
+                    dbox.download(stream, meta, ROOT_DIR);
+                    break;
+                case 'upload':
+                    dbox.upload(stream, meta, ROOT_DIR, dbox.notifyOthers(bs, client, meta));
+                    break;
+                default:
+                    stream.write("No Route for the request:" + JSON.stringify(meta));
+                    console.dir(meta);
+            }
+        });
+    });
+
+
+    //same as curl -k to ignore the certificate to allow http redirect
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    httpServer.listen(PORT, ()=> console.log(`Listening @ http://127.0.0.1:${PORT}`));
 
     let ftpoptions = {
         pasvPortRangeStart: 4000,
@@ -252,4 +300,73 @@ function unzip2Dir(req, res, next) {
 
     }
     ().catch(err=>console.log(err.stack));
+}
+
+
+chokidar.watch(ROOT_DIR, {
+    atomic: true,
+    ignoreInitial: false,
+    ignored: /[\/\\]\.|node_modules|\.git|___jb_old___|\.bak/
+}).on('all', (event, path, stat) => {
+    let filepath = path.toString().slice(ROOT_DIR.toString().length);
+    console.log(event, path);
+    filedata.action = FILE_EVENTS_MAP[event].action;
+    filedata.type = FILE_EVENTS_MAP[event].type;
+    filedata.path = filepath;
+    files[filepath] = filedata;
+    if (stat && filedata.type === 'file') {
+        async ()=> {
+            try {
+                let chksum = await checksum.promise.file(path);
+                if (files[filepath].chksum === undefined || files[filepath].chksum !== chksum) {
+                    files[filepath].chksum = chksum;
+                    console.log(chksum);
+                }
+            } catch (e) {
+                console.log(e.stack)
+            }
+        }
+        ()
+    }
+});
+
+
+function processWatch(bs,client, meta) {
+
+    let filePath = path.resolve(path.join(ROOT_DIR, meta.name));
+    //Directory
+    if (meta.type === 'dir') {
+        if (meta.action === 'delete') {
+            fs.promise.stat(filePath)
+                .then(stat => {
+                    rimraf.promise(filePath);
+                    delete files[meta.name];
+                    dbox.notifyOthers(bs, client, meta);
+                }).catch();
+        } else if (meta.action === 'create') {
+            mkdirp.promise(filePath);
+            files[meta.name] = meta;
+            dbox.notifyOthers(bs, client, meta);
+        }
+
+    }
+//File
+    else {
+        if (meta.action === 'delete') {
+            fs.promise.stat(filePath)
+                .then(stat => {
+                    fs.promise.unlink(filePath);
+                    files[meta.name] = undefined;
+                    dbox.notifyOthers(bs, client, meta);
+                }).catch();
+
+        } else if (!files[meta.name] || files[meta.name].chksum !== meta.chksum) {
+            mkdirp.promise(path.dirname(filePath));
+            if (files[meta.name])
+                meta.lastchksum = files[meta.name].chksum;
+            files[meta.name] = meta;
+            dbox.request_cli_upload(client, meta);
+        }
+    }
+
 }
