@@ -1,0 +1,27 @@
+{
+  "name": "blogger",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "babel-node --stage 1 --optional strict -- ./bin/www"
+  },
+  "dependencies": {
+    "bcrypt": "^0.8.2",
+    "bluebird-nodeify": "^1.0.0",
+    "body-parser": "^1.12.3",
+    "connect-flash": "^0.1.1",
+    "cookie-parser": "^1.3.4",
+    "crypto": "0.0.3",
+    "ejs": "^2.3.1",
+    "express": "^4.0.0",
+    "express-jwt": "^3.0.0",
+    "express-session": "^1.11.1",
+    "jsonwebtoken": "^5.0.0",
+    "mongoose": "^4.0.2",
+    "morgan": "^1.0.0",
+    "nodeifyit": "^1.0.1",
+    "passport": "^0.2.1",
+    "passport-local": "^1.0.0",
+    "songbird": "^1.0.1"
+  }
+}

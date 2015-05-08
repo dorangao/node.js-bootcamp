@@ -1,0 +1,29 @@
+<html>
+<head>
+    <title>Node BlogSky</title>
+    <link href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+
+    <script src="/javascripts/lib/angular.min_1.3.15.js"></script>
+    <script src="/javascripts/lib/angular-ui-router_0.2.14.js"></script>
+    <script src="/javascripts/angularApp.js"></script>
+    <style> .glyphicon-thumbs-up {
+            cursor: pointer
+        } </style>
+</head>
+<body ng-app="bloggerSky">
+<nav class="navbar navbar-default pull-right" ng-controller="NavCtrl">
+    <ul class="nav navbar-nav">
+        <li ng-show="isLoggedIn()"><a>{{ currentUser() }}</a></li>
+        <li ng-show="isLoggedIn()"><a href="" ng-click="logOut()">Log Out</a></li>
+        <li ng-hide="isLoggedIn()"><a href="/#/login">Log In</a></li>
+        <li ng-hide="isLoggedIn()"><a href="/#/register">Register</a></li>
+    </ul>
+</nav>
+<div class="row">
+    <div class="col-md-6 col-md-offset-3">
+        <ui-view></ui-view>
+    </div>
+</div>
+
+</body>
+</html>
