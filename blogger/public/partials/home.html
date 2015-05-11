@@ -20,7 +20,7 @@
 
 <h3>Posts</h3>
 <hr>
-<select class="pull-right" ng-init="post_sortorder='-upvotes'" ng-model="post_sortorder">
+<select ng-show="posts.length" class="pull-right" ng-init="post_sortorder='-upvotes'" ng-model="post_sortorder">
     <option value="-upvotes">Order By Votes</option>
     <option value="-created">Order By Date</option>
 </select>

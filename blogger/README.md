@@ -1,46 +1,44 @@
-## Blogger Demo 
+## Blogger
 
-This is blog engine implementation.
+This is a Blogger clone to create a blog with comments using MEAN(Full JS STACK)
 
-It provides client/server for https/http, ftp support and the files will get aligned over tcp, websocket.
-
-Time spent: 15 hours
+Time spent: `15hours`
 
 ### Features
 
 #### Required
 
-- [x] Signup -- allow user to register and add validations for email, username, password
-- [x] Client can make HEAD request to get just the GET headers 
-- [x] Client can make PUT requests to create new directories and files with content
-- [x] Client can make POST requests to update the contents of a file
-- [x] Client can make DELETE requests to delete files and folders
-- [x] Server will serve from `--dir` or cwd as root
-- [x] Client will sync from server over TCP to cwd or CLI `dir` argument
+- [x] User can Signup, Login and Logout with input validation
+- [x] Session and user accounts are persisted in a data store
+- [x] User can create and edit a blog post
+- [x] User can view blog posts with details on their Profile
+- [x] User can comments on their blog posts on their Profile
+- [x] User can view a anyone's blog with posts and comments at the specified url
+- [x] Logged In users can comment on any blog post
 
 ### Optional
 
-- [x] Client and User will be redirected from HTTP to HTTPS
-- [x] Server will sync from client over TCP
-- [x] Client will preserve a 'Conflict' file when pushed changes preceeding local edits
-- [x] Client can stream and scrub video files (e.g., on iOS)
-- [x] Client can download a directory as an archive
-- [x] Client can create a directory with an archive
-- [x] User can connect to the server using an FTP client
+- [x] User can specify a vanity url for their blog 
+- [x] User's passwords are secured additionally with a blacklist, salt and pepper
+- [x] User can click "Remember Me" to remain logged in -- use Jason web token
+- [ ] Users can author blog posts with rich text
+- [ ] Clicking a blog tag redirects to a list of blogs and blog posts with the given tag
+- [x] Users can include image(s) to be displayed on their blog post
+- [ ] Users can specify a future release date and time to make a blog post visible
+- [ ] Users can rate blog posts, and authors can view the aggregate rating
+- [x] Users can upvote/downvote comments when logged in
+- [ ] Users can edit their comments
+- [x] Public user profiles show their information, posts and comments
 
 ### Extra
-
-- [x] Client can make GET requests to get file names under directory Recursively
+- [x] Use AngularJs as frontend, and Node.Js provide REST service
+- [x] Homepage to display all the blogs and posts
+- [x] Post delete
+- [x] Navigation Bar
+- [x] Upvote a post
+- [x] Image Preview and store images as file and store file info in table and link to post
 
 
 ### Walkthrough
 
-####  Https/Http, FTP, Client walthrough
-
-![alt tag](./Scenario1.gif)
-
-####  TCP Server/Multi Clients Sync up walthrough
-
-![alt tag](./Scenario2.gif)
-
-
+![alt tag](./blog-scenario1.gif)
