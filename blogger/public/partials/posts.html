@@ -1,21 +1,39 @@
 <div class="page-header">
     <h3>
-        <a ng-show="post.link" href="{{post.link}}">
-            {{post.title}}
-        </a>
-      <span ng-hide="post.link">
+       <span>
         {{post.title}}
       </span>
     </h3>
 </div>
+<div ng-show="post.content">
+<span style="...">
+    {{post.content}}
+</span>
+</div>
 
-<div ng-repeat="comment in post.comments | orderBy:'-upvotes'">
+<div ng-show="post.images.length">
+    <hr>
+    <div ng-repeat="pic in post.images">
+        <img ng-src="{{pic.path}}" height="400"/>
+    </div>
+</div>
+
+<div ng-show="post.comments.length">
+    <hr>
+    <span>Comments:</span>
+    <select ng-init="comment_sortorder='-upvotes'" ng-model="comment_sortorder">
+        <option value="-upvotes">By Votes</option>
+        <option value="-created">By Date</option>
+    </select>
+
+    <div ng-repeat="comment in post.comments | orderBy:comment_sortorder">
     <span class="glyphicon glyphicon-thumbs-up"
           ng-click="incrementUpvotes(comment)"></span>
-    {{comment.upvotes}} - by {{comment.author}}
+        {{comment.upvotes}} - by {{comment.author}} | [{{comment.created}}] |
     <span style="font-size:20px; margin-left:10px;">
       {{comment.body}}
     </span>
+    </div>
 </div>
 
 <div ng-hide="isLoggedIn()">
@@ -35,3 +53,4 @@
     </div>
     <button type="submit" class="btn btn-primary">Post</button>
 </form>
+

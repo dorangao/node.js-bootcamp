@@ -9,12 +9,14 @@ let nodeifyit = require('nodeifyit');
 let passport = require('passport');
 
 
+let morgan = require('morgan')
 require('songbird');
 
 let mongoose = require('mongoose');
 let Post = require('./models/Posts');
 let Comment = require('./models/Comments');
 let User = require('./models/Users');
+let Image = require('./models/Images');
 
 require('./middlewares/passport');
 
@@ -24,14 +26,14 @@ let routes = require('./routes/routes');
 
 
 const SALT = bcrypt.genSaltSync(10);
-
 let app = express();
 app.passport = passport;
 
+app.use(morgan('dev'));
 
 // Get POST/PUT body information (e.g., from html forms)
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Use the passport middleware to enable passport
@@ -55,24 +57,8 @@ app.use(function (req, res, next) {
 
 // development error handler
 // will print stacktrace
-if (app.get('env') === 'development') {
-  app.use(function (err, req, res, next) {
-    res.status(err.status || 500);
-    res.render('error', {
-      message: err.message,
-      error: err
-    });
-  });
-}
-
-// production error handler
-// no stacktraces leaked to user
 app.use(function (err, req, res, next) {
-  res.status(err.status || 500);
-  res.render('error', {
-    message: err.message,
-    error: {}
-  });
+  return res.status(err.status || 500).json({message: err.message})
 });
 
 

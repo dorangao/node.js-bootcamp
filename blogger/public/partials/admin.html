@@ -1,0 +1,66 @@
+<div class="page-header">
+    <h1>Account Admin</h1>
+</div>
+
+<div ng-hide="isLoggedIn()">
+    <h3>You need to <a href="/#/login">Log In</a> before you can admin.</h3>
+</div>
+
+<div ng-show="isLoggedIn()">
+
+    <div ng-repeat="post in posts | orderBy:'-upvotes'">
+        <span class="glyphicon glyphicon-thumbs-up"
+              ng-click="incrementUpvotes(post)"></span>
+        {{post.upvotes}}
+        <span style="font-size:20px; margin-left:10px;">
+          <span>
+            {{post.title}}
+          </span>
+        <span class="btn btn-default" ng-click="enterEditMode(post)">
+           Edit
+        </span>
+            <span class="btn btn-default" ng-click="deletePost(post)">
+           Delete
+        </span>
+            </span>
+    </div>
+
+
+    <form ng-show="isLoggedIn()"
+          enctype="multipart/form-data"
+          style="margin-top:30px;">
+        <h3 ng-hide="isUpdate">Add a new post</h3>
+
+        <h3 ng-show="isUpdate">Edit</h3>
+
+        <div class="form-group">
+            <input type="text"
+                   class="form-control"
+                   placeholder="Title"
+                   ng-model="newpost.title"></input>
+        </div>
+        <div class="form-group">
+        <textarea type="text"
+                  class="form-control"
+                  placeholder="Enter your Content"
+                  ng-model="newpost.content"></textarea>
+        </div>
+        <div ng-hide="isUpdate">
+            <div class="form-group btn btn-default" ngf-select ng-model="files" accept="image/*,application/pdf">
+                Select
+                File
+            </div>
+            <hr>
+            <div class="form-group" ng-show="files.length">
+
+                <img ngf-src="files[0]" height="200"/>
+            </div>
+            <br/>
+        </div>
+        <button ng-hide="isUpdate" ng-click="addPost()" type="submit" class="btn btn-primary">Post</button>
+        <button ng-show="isUpdate" ng-click="updatePost()" type="submit" class="btn btn-primary"
+                ng-disabled="!isPostChanged()">Update
+        </button>
+    </form>
+
+</div>

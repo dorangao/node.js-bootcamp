@@ -17,10 +17,28 @@
                ng-model="user.username"></input>
     </div>
     <div class="form-group">
+        <input type="text"
+               class="form-control"
+               placeholder="Email"
+               ng-model="user.email"></input>
+    </div>
+    <div class="form-group">
         <input type="password"
                class="form-control"
                placeholder="Password"
                ng-model="user.password"></input>
+    </div>
+    <div class="form-group">
+        <input type="text"
+               class="form-control"
+               placeholder="BlogTitle"
+               ng-model="user.blogTitle"></input>
+    </div>
+    <div class="form-group">
+        <textarea type="text"
+                  class="form-control"
+                  placeholder="Enter Detailed Blog Description"
+                  ng-model="user.blogDesc"></textarea>
     </div>
     <button type="submit" class="btn btn-primary">Register</button>
 </form>

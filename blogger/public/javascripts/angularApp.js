@@ -1,4 +1,4 @@
-var app = angular.module('bloggerSky', ['ui.router']);
+var app = angular.module('bloggerSky', ['ui.router', 'ngFileUpload']);
 
 app.config([
   '$stateProvider',
@@ -10,8 +10,28 @@ app.config([
         templateUrl: 'partials/home.html',
         controller: 'MainCtrl',
         resolve: {
-          postPromise: ['posts', function (posts) {
-            return posts.getAll();
+          postPromise: ['auth', 'posts', function (auth, posts) {
+            return auth.getAllUsers() && posts.getAll();
+          }]
+        }
+      })
+      .state('admin', {
+        url: '/admin',
+        templateUrl: 'partials/admin.html',
+        controller: 'AdminCtrl',
+        resolve: {
+          postPromise: ['auth', 'posts', function (auth, posts) {
+            return posts.getAll(auth.currentUser());
+          }]
+        }
+      })
+      .state('blog', {
+        url: '/blogs/{username}',
+        templateUrl: 'partials/blog.html',
+        controller: 'BlogCtrl',
+        resolve: {
+          postPromise: ['$stateParams', 'posts', function ($stateParams, posts) {
+            return posts.getAll($stateParams.username);
           }]
         }
       })
@@ -48,20 +68,19 @@ app.config([
     $urlRouterProvider.otherwise('home');
   }]);
 
-app.factory('auth', ['$http', '$window', function ($http, $window) {
-  var auth = {};
+app.factory('auth', ['$http', '$window', 'Upload', function ($http, $window, Upload) {
+  var auth = {users: []};
 
   auth.saveToken = function (token) {
-    $window.localStorage['flapper-news-token'] = JSON.stringify(token);
+    $window.localStorage['bloggersky-token'] = token;
   };
 
   auth.getToken = function () {
-    return $window.localStorage['flapper-news-token'] || false;
-    };
+    return $window.localStorage['bloggersky-token'] || false;
+  };
 
   auth.isLoggedIn = function () {
     var token = auth.getToken();
-
     if (token) {
       var payload = JSON.parse($window.atob(token.split('.')[1]));
       return payload.exp > Date.now() / 1000;
@@ -91,22 +110,28 @@ app.factory('auth', ['$http', '$window', function ($http, $window) {
   };
 
   auth.logOut = function () {
-    $window.localStorage.removeItem('flapper-news-token');
+    $window.localStorage.removeItem('bloggersky-token');
+  };
+
+  auth.getAllUsers = function () {
+    return $http.get('/users').success(function (data) {
+      angular.copy(data, auth.users);
+    });
   };
 
   return auth;
 
-}]).factory('posts', ['$http', 'auth', function ($http, auth) {
+}]).factory('posts', ['$http', 'auth', 'Upload', function ($http, auth, Upload) {
   var o = {
     posts: []
   };
 
   var config = {
     headers: {Authorization: 'Bearer ' + auth.getToken()}
-  }
+  };
 
-  o.getAll = function () {
-    return $http.get('/posts').success(function (data) {
+  o.getAll = function (username) {
+    return $http.get('/posts', {params: {username: username}}).success(function (data) {
       angular.copy(data, o.posts);
     });
   };
@@ -119,15 +144,51 @@ app.factory('auth', ['$http', '$window', function ($http, $window) {
 
 
   o.create = function (post) {
-    return $http.post('/posts', post, config).success(function (data) {
-      o.posts.push(data);
+    return $http.post('/posts', post.post, config).success(function (data) {
+      var files = post.files;
+      if (files && files.length) {
+        for (var i = 0; i < files.length; i++) {
+          var file = files[i];
+          console.log(file);
+          Upload.upload({
+            url: '/posts/' + data._id + '/images',
+            headers: config.headers,
+            file: file
+          }).success(function (newdata, status, headers, cfg) {
+            o.posts.push(newdata);
+          });
+        }
+      } else {
+        o.posts.push(data);
+      }
     });
+  };
+
+  o.uploadImages = function (post, files) {
+
   };
 
   o.upvote = function (post) {
     return $http.put('/posts/' + post._id + '/upvote', null, config)
       .success(function (data) {
         post.upvotes += 1;
+      });
+  };
+
+  o.updatePost = function (post, newpost) {
+    var index = o.posts.indexOf(post);
+    o.posts.splice(index, 1);
+    return $http.put('/posts/' + post._id, newpost, config)
+      .success(function (data) {
+        o.posts.push(data);
+      });
+  };
+
+  o.deletePost = function (post) {
+    return $http.delete('/posts/' + post._id, null, config)
+      .success(function (data) {
+        var index = o.posts.indexOf(post);
+        o.posts.splice(index, 1);
       });
   };
 
@@ -145,40 +206,102 @@ app.factory('auth', ['$http', '$window', function ($http, $window) {
   return o;
 }]);
 
-app.controller('MainCtrl', ['$scope', '$stateParams', 'posts','auth',
-  function ($scope, $stateParams, posts, auth) {
+app.controller('MainCtrl', ['$scope', '$stateParams', 'posts', 'auth', 'Upload',
+  function ($scope, $stateParams, posts, auth, Upload) {
     $scope.isLoggedIn = auth.isLoggedIn;
 
     $scope.posts = posts.posts;
-
+    $scope.users = auth.users;
+    $scope.post = {};
+    $scope.files = [];
     $scope.addPost = function () {
-      if (!$scope.title || $scope.title === '') {
+      if (!$scope.post.title || $scope.post.title === '') {
         return;
       }
-      posts.create({
-        title: $scope.title,
-        link: $scope.link
-      });
-      $scope.title = '';
-      $scope.link = '';
+      posts.create({post: $scope.post, files: $scope.files});
+
+      $scope.post = {};
+      $scope.files = [];
     };
 
     $scope.incrementUpvotes = function (post) {
       posts.upvote(post);
     };
+  }]);
+
+app.controller('AdminCtrl', ['$scope', '$stateParams', 'posts', 'auth', 'Upload',
+  function ($scope, $stateParams, posts, auth, Upload) {
+    $scope.isLoggedIn = auth.isLoggedIn;
+
+    $scope.posts = posts.posts;
+    $scope.newpost = {};
+    $scope.post = {};
+    $scope.isUpdate = false;
+
+    $scope.files = [];
+    $scope.addPost = function () {
+      if (!$scope.newpost.title || $scope.newpost.title === '') {
+        return;
+      }
+      posts.create({post: $scope.newpost, files: $scope.files});
+
+      $scope.newpost = {};
+      $scope.files = [];
+    };
+
+
+    $scope.enterEditMode = function (post) {
+      $scope.isUpdate = true;
+      $scope.post = post;
+      $scope.newpost.title = post.title;
+      $scope.newpost.content = post.content;
+    }
+
+    $scope.isPostChanged = function () {
+      return ($scope.newpost.title !== $scope.post.title || $scope.newpost.content !== $scope.post.content);
+    };
+
+    $scope.updatePost = function () {
+
+      posts.updatePost($scope.post, $scope.newpost).success(function (post) {
+        $scope.isUpdate = false;
+        $scope.newpost = {};
+        $scope.post = {};
+      });
+    };
+
+    $scope.deletePost = function (post) {
+      posts.deletePost(post).success(function (post) {
+      });
+    };
+
+    $scope.incrementUpvotes = function (post) {
+      posts.upvote(post);
+    };
+  }]);
+
+
+app.controller('BlogCtrl', ['$scope', '$stateParams', 'posts', 'auth',
+  function ($scope, $stateParams, posts, auth) {
+    $scope.isLoggedIn = auth.isLoggedIn;
+
+    $scope.posts = posts.posts;
+
+    $scope.blogName = $stateParams.username;
 
   }]);
+
 
 app.controller('PostsCtrl', [
   '$scope',
   'posts',
   'post',
   'auth',
-  function ($scope, posts, post,auth) {
+  function ($scope, posts, post, auth) {
 
     $scope.post = post;
-
     $scope.isLoggedIn = auth.isLoggedIn;
+    $scope.currentUser = auth.currentUser;
 
     $scope.addComment = function () {
       if ($scope.body === '') {
@@ -193,10 +316,14 @@ app.controller('PostsCtrl', [
       $scope.body = '';
     };
 
+
     $scope.incrementUpvotes = function (comment) {
       posts.upvoteComment(post, comment);
     };
 
+    $scope.incrementUpvotes = function (comment) {
+      posts.upvoteComment(post, comment);
+    };
 
   }]);
 
@@ -211,7 +338,7 @@ app.controller('AuthCtrl', [
       auth.register($scope.user).error(function (error) {
         $scope.error = error;
       }).then(function () {
-        $state.go('home');
+        $state.go('admin');
       });
     };
 
@@ -219,7 +346,7 @@ app.controller('AuthCtrl', [
       auth.logIn($scope.user).error(function (error) {
         $scope.error = error;
       }).then(function () {
-        $state.go('home');
+        $state.go('admin');
       });
     };
   }]);
