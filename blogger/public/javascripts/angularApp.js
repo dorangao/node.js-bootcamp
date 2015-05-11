@@ -1,5 +1,8 @@
-var app = angular.module('bloggerSky', ['ui.router', 'ngFileUpload']);
+var app = angular.module('bloggerSky', ['ui.router', 'ngFileUpload', 'xeditable']);
 
+app.run(function(editableOptions) {
+  editableOptions.theme = 'bs3'; // bootstrap3 theme. Can be also 'bs2', 'default'
+});
 app.config([
   '$stateProvider',
   '$urlRouterProvider',
@@ -185,7 +188,7 @@ app.factory('auth', ['$http', '$window', 'Upload', function ($http, $window, Upl
   };
 
   o.deletePost = function (post) {
-    return $http.delete('/posts/' + post._id, null, config)
+    return $http.delete('/posts/' + post._id, config)
       .success(function (data) {
         var index = o.posts.indexOf(post);
         o.posts.splice(index, 1);
@@ -194,6 +197,19 @@ app.factory('auth', ['$http', '$window', 'Upload', function ($http, $window, Upl
 
   o.addComment = function (id, comment) {
     return $http.post('/posts/' + id + '/comments', comment, config);
+  };
+
+  o.updateComment = function (comment, newcomment) {
+    return $http.put('/comments/' + comment._id, newcomment, config)
+      .success(function (data) {
+        return data;
+      });
+  };
+
+  o.deleteComment = function (comment) {
+    return $http.delete('/comments/' + comment._id, config)
+      .success(function (data) {
+      });
   };
 
   o.upvoteComment = function (post, comment) {
@@ -303,20 +319,49 @@ app.controller('PostsCtrl', [
     $scope.isLoggedIn = auth.isLoggedIn;
     $scope.currentUser = auth.currentUser;
 
+    $scope.comments = post.comments;
+
+    $scope.comment={};
+    $scope.newcomment = {};
+    $scope.isUpdate = false;
+
+    $scope.enterCommentEditMode = function (comment) {
+      $scope.isUpdate = true;
+      $scope.comment = comment;
+      $scope.newcomment.body = comment.body;
+    }
     $scope.addComment = function () {
       if ($scope.body === '') {
         return;
       }
       posts.addComment(post._id, {
-        body: $scope.body,
-        author: 'user'
+        body: $scope.newcomment.body
       }).success(function (comment) {
         $scope.post.comments.push(comment);
       });
-      $scope.body = '';
+      $scope.newcomment = {};
+    };
+    $scope.isCommentChanged = function () {
+      return ($scope.newcomment.body !== $scope.comment.body);
     };
 
+    $scope.updateComment = function () {
+      posts.updateComment($scope.comment, $scope.newcomment).success(function (updatedcomment) {
+        $scope.isUpdate = false;
+        var index = $scope.post.comments.indexOf($scope.comment);
+        $scope.post.comments.splice(index, 1);
+        $scope.post.comments.push(updatedcomment);
+        $scope.newcomment = {};
+        $scope.comment = {};
+      });
+    };
 
+    $scope.deleteComment = function (comment) {
+      posts.deleteComment(comment).success(function (res) {
+        var index = $scope.post.comments.indexOf(comment);
+        $scope.post.comments.splice(index, 1);
+      });
+    };
     $scope.incrementUpvotes = function (comment) {
       posts.upvoteComment(post, comment);
     };

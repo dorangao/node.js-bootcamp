@@ -33,6 +33,16 @@
     <span style="font-size:20px; margin-left:10px;">
       {{comment.body}}
     </span>
+
+        <span ng-show="currentUser()===comment.author">
+        <span class="btn btn-default" ng-click="enterCommentEditMode(comment)">
+           Edit
+        </span>
+            <span class="btn btn-default" ng-click="deleteComment(comment)">
+           Delete
+        </span>
+        </span>
+
     </div>
 </div>
 
@@ -40,17 +50,18 @@
     <h3>You need to <a href="/#/login">Log In</a> or <a href="/#/register">Register</a> before you can comment.</h3>
 </div>
 
-<form ng-submit="addComment()"
-      ng-show="isLoggedIn()"
+<form ng-show="isLoggedIn()"
       style="margin-top:30px;">
-    <h3>Add a new comment</h3>
+    <h3 ng-hide="isUpdate">Add a new comment</h3>
+    <h3 ng-Show="isUpdate">Update comment</h3>
 
     <div class="form-group">
         <input type="text"
                class="form-control"
                placeholder="Comment"
-               ng-model="body"></input>
+               ng-model="newcomment.body"></input>
     </div>
-    <button type="submit" class="btn btn-primary">Post</button>
+    <button ng-hide="isUpdate" ng-click="addComment()" type="submit" class="btn btn-primary">Post</button>
+    <button ng-show="isUpdate" ng-disabled="!isCommentChanged()" ng-click="updateComment()" type="submit" class="btn btn-primary">Update</button>
 </form>
 

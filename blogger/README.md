@@ -27,13 +27,14 @@ Time spent: `15hours`
 - [ ] Users can specify a future release date and time to make a blog post visible
 - [ ] Users can rate blog posts, and authors can view the aggregate rating
 - [x] Users can upvote/downvote comments when logged in
-- [ ] Users can edit their comments
+- [x] Users can edit their comments
 - [x] Public user profiles show their information, posts and comments
 
 ### Extra
 - [x] Use AngularJs as frontend, and Node.Js provide REST service
 - [x] Homepage to display all the blogs and posts
 - [x] Post delete
+- [x] Users can delete their comments
 - [x] Navigation Bar
 - [x] Upvote a post
 - [x] Image Preview and store images as file and store file info in table and link to post
@@ -42,3 +43,7 @@ Time spent: `15hours`
 ### Walkthrough
 
 ![alt tag](./blog-scenario1.gif)
+
+#### Edit/Delete Users' Own Comments
+
+![alt tag](./blog-scenario2.gif)

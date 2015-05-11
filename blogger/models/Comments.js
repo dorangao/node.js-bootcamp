@@ -14,4 +14,13 @@ CommentSchema.methods.upvote = function (cb) {
   this.save(cb);
 };
 
+CommentSchema.methods.update = function (comment,cb) {
+  if(this.body !== comment.body)
+  {
+    this.body=comment.body;
+    this.updated = new Date();
+    this.save(cb);
+  }
+};
+
 mongoose.model('Comment', CommentSchema);

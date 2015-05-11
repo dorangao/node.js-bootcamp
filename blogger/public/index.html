@@ -3,19 +3,18 @@
     <title>Node BlogSky</title>
     <link href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="/stylesheets/style.css" rel="stylesheet">
-
     <script src="/javascripts/lib/angular/angular.min.js"></script>
     <script src="/javascripts/lib/angular-ui-router_0.2.14.js"></script>
     <script src="/javascripts/lib/ng-file-upload/ng-file-upload.js"></script>
     <script src="/javascripts/angularApp.js"></script>
     <style> .glyphicon-thumbs-up {
-            cursor: pointer
-        } </style>
+        cursor: pointer
+    } </style>
 </head>
 <body ng-app="bloggerSky">
 <nav class="navbar navbar-default pull-right" ng-controller="NavCtrl">
     <ul class="nav navbar-nav">
-        <li ><a href="/#/home">Home</a></li>
+        <li><a href="/#/home">Home</a></li>
         <li ng-show="isLoggedIn()"><a href="/#/admin">{{ currentUser() }}</a></li>
         <li ng-show="isLoggedIn()"><a href="" ng-click="logOut()">Log Out</a></li>
         <li ng-hide="isLoggedIn()"><a href="/#/login">Log In</a></li>

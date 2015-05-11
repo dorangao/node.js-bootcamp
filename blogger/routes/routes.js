@@ -124,7 +124,7 @@ module.exports = (app) => {
     });
   });
 
-  app.put('/posts/:post', function (req, res, next) {
+  app.put('/posts/:post', auth, function (req, res, next) {
     req.post.update(req.body, function (err, post) {
       if (err) {
         return next(err);
@@ -134,7 +134,7 @@ module.exports = (app) => {
   });
 
 
-  app.delete('/posts/:post', function (req, res, next) {
+  app.delete('/posts/:post', auth, function (req, res, next) {
     Post.remove(req.post, function (err, post) {
       if (err) {
         return next(err);
@@ -175,6 +175,7 @@ module.exports = (app) => {
       });
     });
   });
+
   app.param('comment', function (req, res, next, id) {
 
     var query = Comment.findById(id);
@@ -192,6 +193,14 @@ module.exports = (app) => {
     });
   });
 
+  app.put('/comments/:comment', auth, function (req, res, next) {
+    req.comment.update(req.body, function (err, comment) {
+      if (err) {
+        return next(err);
+      }
+      res.json(comment);
+    });
+  });
   app.put('/posts/:post/comments/:comment/upvote', auth, function (req, res, next) {
     req.comment.upvote(function (err, post) {
       if (err) {
@@ -200,6 +209,17 @@ module.exports = (app) => {
 
       res.json(post);
     });
+  });
+
+  app.delete('/comments/:comment', auth, function (req, res, next) {
+    console.log("req")
+    Comment.remove(req.comment, function (err, comment) {
+      if (err) {
+        return next(err);
+      }
+      res.json(comment);
+    })
+
   });
 
   app.post('/register', function (req, res, next) {
