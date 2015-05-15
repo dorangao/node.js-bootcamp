@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+    <title>Social Authenticator</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css">
+    <style>
+        body { padding-top:80px; word-wrap:break-word; }
+        ._icons > a, ._icons > a:visited, ._icons > a:hover, ._icons > a:active { color: inherit; }
+
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="page-header text-center">
+        <h1><span class="fa fa-home"></span> Timeline</h1>
+        <a href="/compose" class="btn btn-default btn-sm">
+            <i class="fa fa-pencil-square-o"></i>&nbsp;&nbsp;&nbsp;Compose
+        </a>
+        <a href="/profile" class="btn btn-default btn-sm">Profile</a>
+        <a href="/logout" class="btn btn-default btn-sm">Logout</a><br><br>
+    </div>
+
+    <% if (typeof message !== 'undefined' && message.length > 0) { %>
+    <div class="alert alert-danger"><%= message %></div>
+    <% } %>
+
+    <% for(var post,i=0; post=posts[i]; i++) {%>
+    <div class="row well">
+
+        <div class="col-xs-2">
+            <img src="<%= post.image %>"/>
+        </div>
+        <div class="col-lg-8">
+            <div class="row">
+                <p>
+                    <strong><%= post.name %></strong> @ <%= post.username %> [ <%= post.created_time %>]<br>
+                    <%- post.text %>
+                </p>
+            </div>
+            <div class="row _icons">
+                <i class="fa <%= post.liked ? "fa-thumbs-up" : "fa-thumbs-o-up" %> fa-2x _like" name="like<%= post.network.icon %>/<%= post.id %>"></i>
+                <a href="/reply/<%= post.network.icon %>/<%= post.id %>" class="fa fa-reply fa-2x"></a>
+                <a href="/share/<%= post.network.icon %>/<%= post.id %>" class="fa fa-share-square-o fa-2x"></a>
+            </div>
+        </div>
+        <div class="col-xs-2">
+                <span class="btn <%= post.network.class %>"><span class="fa fa-<%= post.network.icon %>"></span> <%= post.network.name %></a>
+        </div>
+    </div>
+    <% } %>
+</div>
+</body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script>
+    $(function() {
+        $('._like').click(function() {
+            var $this = $(this)
+            var id = $this.attr('name').replace('like', '')
+            $this.toggleClass('fa-thumbs-o-up')
+            $this.toggleClass('fa-thumbs-up')
+            if ($this.hasClass('fa-thumbs-up')) {
+                $.post('like/' + id)
+            } else {
+                $.post('unlike/' + id)
+            }
+        })
+    })
+</script>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+    <title>Social Authenticator</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css">
+    <style>
+        body { padding-top:80px; word-wrap:break-word; }
+        a.fa, a.fa:visited, a.fa:hover, a.fa:active { color: inherit; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="page-header text-center">
+        <h1><span class="fa fa-pencil"></span> Compose</h1>
+        <a href="/timeline" class="btn btn-default btn-sm">Timeline</a>
+        <a href="/profile" class="btn btn-default btn-sm">Profile</a>
+        <a href="/logout" class="btn btn-default btn-sm">Logout</a><br><br>
+    </div>
+
+    <% if (typeof message !== 'undefined' && message.length > 0) { %>
+    <div class="alert alert-danger"><%= message %></div>
+    <% } %>
+
+    <div class="row">
+        <form action="/compose" method="POST">
+            <div class="form-group">
+                <select name="network" class="form-control">
+                    <option value="facebook" selected>Facebook</option>
+                    <option value="twitter">Twitter</option>
+                    <option value="google">Google</option>
+                    <option value="linkedin">LinkedIn</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <textarea name="content" class="form-control" rows="3" placeholder="Compose your post here..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-default">Post</button>
+        </form>
+    </div>
+</div>
+</body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script>
+    $(function() {
+        $('._like').click(function() {
+            var $this = $(this)
+            var id = $this.attr('name').replace('like', '')
+            $this.toggleClass('fa-thumbs-o-up')
+            $this.toggleClass('fa-thumbs-up')
+            if ($this.hasClass('fa-thumbs-up')) {
+                $.post('like/' + id)
+            } else {
+                $.post('unlike/' + id)
+            }
+        })
+    })
+</script>
+</html>
