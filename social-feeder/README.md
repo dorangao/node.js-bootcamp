@@ -24,8 +24,8 @@ Time spent: `<Number of hours spent>`
 - [ ] User can click a post and view it on a separate page with controls to share, like, and reply.
 - [ ] User should be able to unshare their posts.
 - [x] User should be able to delete their posts.
-- [x] Replies should be prefixed with the username and link to the conversation thread.
-- [x] User can click a "Next" button at the bottom to load more 
+- [ ] Replies should be prefixed with the username and link to the conversation thread.
+- [ ] User can click a "Next" button at the bottom to load more 
 
 ### Walkthrough
 
