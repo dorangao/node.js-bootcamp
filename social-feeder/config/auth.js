@@ -8,8 +8,8 @@ module.exports = {
     callbackURL: 'http://socialauthenticator.com:8000/auth/facebook/callback'
   },
   google : {
-    clientID: '640123772188-4ijffblghidl2g13c961rvieudr7i3tk.apps.googleusercontent.com',
-    clientSecret: 'bSellToxjcy_CVtuHCuouUsP',
+    clientID: '640123772188-altppir46p45qf408q5u4e1l5a3vpn1a.apps.googleusercontent.com',
+    clientSecret: 'vvMirS1e7mhAR6XQ5e-otlvs',
     callbackURL: 'http://socialauthenticator.com:8000/auth/google/callback'
   },
   linkedin : {

@@ -3,6 +3,8 @@ let User = require('../models/user');
 require('songbird');
 
 module.exports = async function isLoggedIn(req, res, next) {
+  if(req.user && req.isAuthenticated())
+    return next();
   if (req.session && req.session.user) {
     // Is the email taken?
     let user = await User.promise.findById(req.session.user._id);
@@ -15,6 +17,6 @@ module.exports = async function isLoggedIn(req, res, next) {
   if (!req.user) {
     res.redirect('/authcentral');
   } else {
-    next();
+    return next();
   }
 }

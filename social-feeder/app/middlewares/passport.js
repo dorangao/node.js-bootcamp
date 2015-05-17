@@ -78,6 +78,9 @@ function useExternalPassportStrategy(OauthStrategy, config, field) {
         user[field].email = profile.emails[0].value;
         break;
       case 'google':
+        user[field].name = profile.displayName;
+        user[field].refreshToken = refreshToken;
+        user[field].email = profile.emails[0].value;
       case 'linkedin':
         user[field].name = profile.displayName;
         user[field].email = profile.emails[0].value;

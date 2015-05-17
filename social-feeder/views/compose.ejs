@@ -29,7 +29,6 @@
                 <select name="network" class="form-control">
                     <option value="facebook" selected>Facebook</option>
                     <option value="twitter">Twitter</option>
-                    <option value="google">Google</option>
                     <option value="linkedin">LinkedIn</option>
                 </select>
             </div>
@@ -41,20 +40,4 @@
     </div>
 </div>
 </body>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
-<script>
-    $(function() {
-        $('._like').click(function() {
-            var $this = $(this)
-            var id = $this.attr('name').replace('like', '')
-            $this.toggleClass('fa-thumbs-o-up')
-            $this.toggleClass('fa-thumbs-up')
-            if ($this.hasClass('fa-thumbs-up')) {
-                $.post('like/' + id)
-            } else {
-                $.post('unlike/' + id)
-            }
-        })
-    })
-</script>
 </html>

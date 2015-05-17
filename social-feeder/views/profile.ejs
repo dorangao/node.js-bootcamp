@@ -14,6 +14,7 @@
     <div class="page-header text-center">
         <h1><span class="fa fa-user"></span> Profile Page</h1>
         <a href="/timeline" class="btn btn-default btn-sm">Timeline</a>
+        <a href="/compose" class="btn btn-default btn-sm">compose</a>
         <a href="/logout" class="btn btn-default btn-sm">Logout</a>
     </div>
 
@@ -124,6 +125,7 @@
                 <p>
                     <strong>id</strong>: <%= user.google.id %><br>
                     <strong>token</strong>: <%= user.google.token %><br>
+                    <strong>refreshToken</strong>: <%= user.google.refreshToken %><br>
                     <strong>email</strong>: <%= user.google.email %><br>
                     <strong>name</strong>: <%= user.google.name %>
                 </p>

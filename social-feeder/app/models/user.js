@@ -31,6 +31,7 @@ let userSchema = mongoose.Schema({
   google: {
     id: String,
     token: String,
+    refreshToken: String,
     email: String,
     name: String
   }
