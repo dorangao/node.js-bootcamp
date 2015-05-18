@@ -2,7 +2,7 @@
 
 This is a aggregated Social Feed app for consumer LinkedIn, Facebook, Google, and Twitter in a single Timeline.
 
-Time spent: `<Number of hours spent>`
+Time spent: 20 hours
 
 ### Features
 
@@ -31,7 +31,3 @@ Time spent: `<Number of hours spent>`
 
 
 ![alt tag](./social-scenario.gif)
-
-
-
-
